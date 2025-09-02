@@ -18,6 +18,7 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { formatPrice } from '@/lib/currency';
 
 export default function AddProduct() {
   const { user } = useAuth();
@@ -267,17 +268,17 @@ export default function AddProduct() {
                   Selling Price *
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">RWF</span>
                   <input
                     type="number"
                     name="price"
                     value={formData.price}
                     onChange={handleInputChange}
                     required
-                    step="0.01"
-                    min="0"
-                    className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder="0.00"
+                    step="100"
+                    min="100"
+                    className="w-full pl-12 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="0"
                   />
                 </div>
               </div>
@@ -287,16 +288,16 @@ export default function AddProduct() {
                   Compare Price
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">RWF</span>
                   <input
                     type="number"
                     name="comparePrice"
                     value={formData.comparePrice}
                     onChange={handleInputChange}
-                    step="0.01"
-                    min="0"
-                    className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder="0.00"
+                    step="100"
+                    min="100"
+                    className="w-full pl-12 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="0"
                   />
                 </div>
               </div>
@@ -306,16 +307,16 @@ export default function AddProduct() {
                   Cost Price
                 </label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">RWF</span>
                   <input
                     type="number"
                     name="cost"
                     value={formData.cost}
                     onChange={handleInputChange}
-                    step="0.01"
-                    min="0"
-                    className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder="0.00"
+                    step="100"
+                    min="100"
+                    className="w-full pl-12 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="0"
                   />
                 </div>
               </div>

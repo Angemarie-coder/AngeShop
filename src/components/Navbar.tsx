@@ -3,10 +3,12 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCart } from '@/contexts/CartContext';
 import { ShoppingCart, User, Menu, X } from 'lucide-react';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
+  const { totalItems } = useCart();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleLogout = () => {
@@ -43,8 +45,13 @@ export default function Navbar() {
 
           {/* Desktop Auth & Cart */}
           <div className="hidden md:flex items-center space-x-4">
-            <Link href="/cart" className="text-gray-700 hover:text-purple-600 transition-colors">
+            <Link href="/cart" className="text-gray-700 hover:text-purple-600 transition-colors relative">
               <ShoppingCart className="h-6 w-6" />
+              {totalItems > 0 && (
+                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                  {totalItems}
+                </span>
+              )}
             </Link>
             
             {user ? (
@@ -137,7 +144,7 @@ export default function Navbar() {
               className="block px-3 py-2 text-gray-700 hover:text-purple-600 transition-colors"
               onClick={() => setIsMenuOpen(false)}
             >
-              Cart
+              Cart {totalItems > 0 && `(${totalItems})`}
             </Link>
             
             {user ? (

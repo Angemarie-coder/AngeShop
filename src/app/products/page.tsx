@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Search, Filter, ShoppingCart } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { apiClient } from '@/lib/api';
+import { formatPrice } from '@/lib/currency';
 
 interface Product {
   _id: string;
@@ -22,6 +23,8 @@ export default function ProductsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [sortBy, setSortBy] = useState('newest');
+  const [showNotification, setShowNotification] = useState(false);
+  const [notificationProduct, setNotificationProduct] = useState<string>('');
   const { addToCart } = useCart();
 
   const categories = [
@@ -57,6 +60,9 @@ export default function ProductsPage() {
 
   const handleAddToCart = (product: Product) => {
     addToCart(product);
+    setNotificationProduct(product.name);
+    setShowNotification(true);
+    setTimeout(() => setShowNotification(false), 3000);
   };
 
   if (loading) {
@@ -72,6 +78,16 @@ export default function ProductsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
+      {/* Success Notification */}
+      {showNotification && (
+        <div className="fixed top-20 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 animate-fade-in">
+          <div className="flex items-center space-x-2">
+            <span>✓</span>
+            <span>{notificationProduct} added to cart!</span>
+          </div>
+        </div>
+      )}
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                  {/* Header */}
          <div className="mb-8">
@@ -158,7 +174,7 @@ export default function ProductsPage() {
                    
                    <div className="flex items-center justify-between mb-4">
                      <span className="text-3xl font-bold text-purple-600">
-                       ${product.price}
+                       {formatPrice(product.price)}
                      </span>
                      <span className="text-sm font-medium text-gray-600">
                        {product.stockQuantity} in stock

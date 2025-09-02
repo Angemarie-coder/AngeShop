@@ -22,6 +22,7 @@ import {
   Upload
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { formatPrice, formatTotal } from '@/lib/currency';
 
 export default function AdminDashboard() {
   const { user } = useAuth();
@@ -47,7 +48,7 @@ export default function AdminDashboard() {
   const stats = [
     {
       title: 'Total Sales',
-      value: '$12,450',
+      value: formatTotal(12450000),
       change: '+12.5%',
       changeType: 'positive',
       icon: DollarSign,
@@ -76,10 +77,10 @@ export default function AdminDashboard() {
   ];
 
   const recentOrders = [
-    { id: '#1234', customer: 'John Doe', amount: '$299.99', status: 'Delivered', date: '2024-01-15' },
-    { id: '#1235', customer: 'Jane Smith', amount: '$199.99', status: 'Processing', date: '2024-01-14' },
-    { id: '#1236', customer: 'Bob Johnson', amount: '$599.99', status: 'Shipped', date: '2024-01-13' },
-    { id: '#1237', customer: 'Alice Brown', amount: '$399.99', status: 'Pending', date: '2024-01-12' },
+    { id: '#1234', customer: 'John Doe', amount: formatPrice(29999), status: 'Delivered', date: '2024-01-15' },
+    { id: '#1235', customer: 'Jane Smith', amount: formatPrice(19999), status: 'Processing', date: '2024-01-14' },
+    { id: '#1236', customer: 'Bob Johnson', amount: formatPrice(59999), status: 'Shipped', date: '2024-01-13' },
+    { id: '#1237', customer: 'Alice Brown', amount: formatPrice(39999), status: 'Pending', date: '2024-01-12' },
   ];
 
   const navigation = [

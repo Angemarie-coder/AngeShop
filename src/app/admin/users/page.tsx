@@ -23,6 +23,7 @@ import {
   Unlock
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { formatTotal } from '@/lib/currency';
 import { apiClient } from '@/lib/api';
 
 interface User {
@@ -401,7 +402,7 @@ export default function UsersManagement() {
                         {user.totalOrders}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ${user.totalSpent.toFixed(2)}
+                        {formatTotal(user.totalSpent)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {user.lastLogin === 'Never' ? 'Never' : new Date(user.lastLogin).toLocaleDateString()}

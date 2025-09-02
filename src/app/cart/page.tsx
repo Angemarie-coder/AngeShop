@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { Trash2, Minus, Plus, ShoppingBag } from 'lucide-react';
+import { Trash2, Minus, Plus, ShoppingBag, Phone, CreditCard } from 'lucide-react';
 import Link from 'next/link';
+import { formatPrice, formatTotal } from '@/lib/currency';
 
 export default function CartPage() {
   const { items, removeFromCart, updateQuantity, totalPrice, clearCart } = useCart();
@@ -43,6 +44,13 @@ export default function CartPage() {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Shopping Cart</h1>
+        
+        {/* Debug Info */}
+        <div className="mb-4 p-4 bg-gray-100 rounded-lg">
+          <p className="text-sm text-gray-600">
+            Debug: Cart has {items.length} unique items, total quantity: {items.reduce((sum, item) => sum + item.quantity, 0)}
+          </p>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Cart Items */}
@@ -58,7 +66,7 @@ export default function CartPage() {
                   
                   <div className="flex-1 ml-4">
                     <h3 className="font-semibold text-lg">{item.product.name}</h3>
-                    <p className="text-gray-600 text-sm">${item.product.price}</p>
+                    <p className="text-gray-600 text-sm">{formatPrice(item.product.price)}</p>
                   </div>
 
                   <div className="flex items-center space-x-2">
@@ -78,7 +86,7 @@ export default function CartPage() {
                   </div>
 
                   <div className="text-right ml-4">
-                    <p className="font-semibold">${(item.product.price * item.quantity).toFixed(2)}</p>
+                    <p className="font-semibold">{formatTotal(item.product.price * item.quantity)}</p>
                     <button
                       onClick={() => removeFromCart(item.product._id)}
                       className="text-red-500 hover:text-red-700 mt-1"
@@ -114,7 +122,7 @@ export default function CartPage() {
               <div className="space-y-3 mb-6">
                 <div className="flex justify-between">
                   <span>Subtotal ({items.reduce((sum, item) => sum + item.quantity, 0)} items)</span>
-                  <span>${totalPrice.toFixed(2)}</span>
+                  <span>{formatTotal(totalPrice)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Shipping</span>
@@ -123,7 +131,7 @@ export default function CartPage() {
                 <div className="border-t pt-3">
                   <div className="flex justify-between font-bold text-lg">
                     <span>Total</span>
-                    <span>${totalPrice.toFixed(2)}</span>
+                    <span>{formatTotal(totalPrice)}</span>
                   </div>
                 </div>
               </div>
@@ -149,9 +157,9 @@ export default function CartPage() {
               )}
 
               <div className="mt-4 text-sm text-gray-600">
-                <p>• Free shipping on orders over $50</p>
+                <p>• Free shipping on orders over {formatPrice(50000)}</p>
                 <p>• 30-day return policy</p>
-                <p>• Secure payment processing</p>
+                <p>• Secure mobile money payment via TIGO/MTN</p>
               </div>
             </div>
           </div>
@@ -183,18 +191,22 @@ function CheckoutModal({ items, totalPrice, onClose }: {
     city: '',
     postalCode: '',
     country: '',
-    cardNumber: '',
-    expiryDate: '',
-    cvv: '',
+    phone: '',
   });
   const [loading, setLoading] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success' | 'failed'>('idle');
+  const [paymentMessage, setPaymentMessage] = useState('');
+  const [transactionRef, setTransactionRef] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setPaymentStatus('processing');
+    setPaymentMessage('Processing payment...');
 
     try {
-      const response = await fetch('/api/orders', {
+      // First, create the order
+      const orderResponse = await fetch('/api/orders', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -215,17 +227,68 @@ function CheckoutModal({ items, totalPrice, onClose }: {
         }),
       });
 
-      if (response.ok) {
-        // Order successful
-        onClose();
-        // Redirect to order confirmation
+      if (!orderResponse.ok) {
+        throw new Error('Failed to create order');
+      }
+
+      const orderData = await orderResponse.json();
+
+      // Now process the payment through Paypack
+      const paymentResponse = await fetch('/api/pay', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: totalPrice,
+          phone: formData.phone
+        }),
+      });
+
+      const paymentData = await paymentResponse.json();
+
+      if (paymentData.success) {
+        setPaymentStatus('success');
+        setPaymentMessage('Payment request sent successfully! Check your phone for USSD prompt.');
+        if (paymentData.data?.ref) {
+          setTransactionRef(paymentData.data.ref);
+          // Start checking transaction status
+          checkTransactionStatus(paymentData.data.ref);
+        }
       } else {
-        throw new Error('Order failed');
+        setPaymentStatus('failed');
+        setPaymentMessage(`Payment failed: ${paymentData.message || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('Checkout error:', error);
+      setPaymentStatus('failed');
+      setPaymentMessage(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkTransactionStatus = async (ref: string) => {
+    try {
+      const response = await fetch(`/api/transaction/${ref}`);
+      const data = await response.json();
+      
+      if (data.success && data.data?.status === 'SUCCESS') {
+        setPaymentMessage('Payment completed successfully! Your order is being processed.');
+        setPaymentStatus('success');
+        // Close modal after successful payment
+        setTimeout(() => {
+          onClose();
+        }, 3000);
+      } else if (data.success && data.data?.status === 'PENDING') {
+        setPaymentMessage('Payment is being processed... Check your phone.');
+        // Continue checking status
+        setTimeout(() => checkTransactionStatus(ref), 5000);
+      } else if (data.success && data.data?.status === 'FAILED') {
+        setPaymentMessage('Payment failed. Please try again.');
+        setPaymentStatus('failed');
+      }
+    } catch (error) {
+      console.error('Error checking transaction status:', error);
     }
   };
 
@@ -290,34 +353,36 @@ function CheckoutModal({ items, totalPrice, onClose }: {
             </div>
           </div>
 
-          {/* Payment Information */}
+          {/* Mobile Money Payment */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Payment Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <input
-                type="text"
-                placeholder="Card Number"
-                value={formData.cardNumber}
-                onChange={(e) => setFormData({ ...formData, cardNumber: e.target.value })}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                required
-              />
-              <input
-                type="text"
-                placeholder="MM/YY"
-                value={formData.expiryDate}
-                onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                required
-              />
-              <input
-                type="text"
-                placeholder="CVV"
-                value={formData.cvv}
-                onChange={(e) => setFormData({ ...formData, cvv: e.target.value })}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                required
-              />
+            <h3 className="text-lg font-semibold mb-4 flex items-center">
+              <Phone className="h-5 w-5 mr-2" />
+              Mobile Money Payment
+            </h3>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <p className="text-sm text-blue-800">
+                💡 <strong>How it works:</strong> Enter your TIGO or MTN phone number. You'll receive a USSD prompt on your phone to complete the payment.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Phone Number (TIGO/MTN)
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <input
+                    type="tel"
+                    placeholder="0781234567"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    required
+                    pattern="07[0-9]{8}"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Enter your TIGO or MTN phone number</p>
+              </div>
             </div>
           </div>
 
@@ -328,17 +393,42 @@ function CheckoutModal({ items, totalPrice, onClose }: {
               {items.map((item) => (
                 <div key={item.product._id} className="flex justify-between">
                   <span>{item.product.name} x {item.quantity}</span>
-                  <span>${(item.product.price * item.quantity).toFixed(2)}</span>
+                  <span>{formatTotal(item.product.price * item.quantity)}</span>
                 </div>
               ))}
               <div className="border-t pt-2 font-bold">
                 <div className="flex justify-between">
                   <span>Total</span>
-                  <span>${totalPrice.toFixed(2)}</span>
+                  <span>{formatTotal(totalPrice)}</span>
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Payment Status */}
+          {paymentMessage && (
+            <div className={`p-4 rounded-lg border ${
+              paymentStatus === 'success' ? 'border-green-200 bg-green-50 text-green-800' :
+              paymentStatus === 'failed' ? 'border-red-200 bg-red-50 text-red-800' :
+              'border-blue-200 bg-blue-50 text-blue-800'
+            }`}>
+              <div className="flex items-center space-x-2">
+                {paymentStatus === 'success' && <span>✅</span>}
+                {paymentStatus === 'failed' && <span>❌</span>}
+                {paymentStatus === 'processing' && <span>⏳</span>}
+                <span className="font-medium">{paymentMessage}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Transaction Reference */}
+          {transactionRef && (
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <p className="text-sm text-gray-600">
+                <span className="font-medium">Transaction Ref:</span> {transactionRef}
+              </p>
+            </div>
+          )}
 
           <div className="flex gap-4">
             <button
@@ -353,7 +443,7 @@ function CheckoutModal({ items, totalPrice, onClose }: {
               disabled={loading}
               className="flex-1 bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
             >
-              {loading ? 'Processing...' : 'Place Order'}
+              {loading ? 'Processing...' : 'Pay with Mobile Money'}
             </button>
           </div>
         </form>

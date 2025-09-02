@@ -17,20 +17,22 @@ import {
   Star,
   Tag,
   DollarSign,
-  Hash
+  Hash,
+  RefreshCw
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { formatPrice } from '@/lib/currency';
+import { apiClient } from '@/lib/api';
 
 interface Product {
-  id: string;
+  _id: string;
   name: string;
   description: string;
   price: number;
   category: string;
-  stock: number;
+  stockQuantity: number;
   image: string;
-  rating: number;
-  status: 'active' | 'inactive';
+  inStock: boolean;
   createdAt: string;
 }
 
@@ -57,63 +59,40 @@ export default function ProductsManagement() {
       return;
     }
 
-    // Simulate loading products
-    setTimeout(() => {
-      setProducts([
-        {
-          id: '1',
-          name: 'Wireless Bluetooth Headphones',
-          description: 'High-quality wireless headphones with noise cancellation',
-          price: 99.99,
-          category: 'Electronics',
-          stock: 45,
-          image: '/api/placeholder/150/150',
-          rating: 4.5,
-          status: 'active',
-          createdAt: '2024-01-15'
-        },
-        {
-          id: '2',
-          name: 'Smart Fitness Watch',
-          description: 'Advanced fitness tracking with heart rate monitor',
-          price: 199.99,
-          category: 'Electronics',
-          stock: 23,
-          image: '/api/placeholder/150/150',
-          rating: 4.8,
-          status: 'active',
-          createdAt: '2024-01-14'
-        },
-        {
-          id: '3',
-          name: 'Organic Cotton T-Shirt',
-          description: 'Comfortable and eco-friendly cotton t-shirt',
-          price: 29.99,
-          category: 'Clothing',
-          stock: 67,
-          image: '/api/placeholder/150/150',
-          rating: 4.2,
-          status: 'active',
-          createdAt: '2024-01-13'
-        },
-        {
-          id: '4',
-          name: 'Coffee Maker Pro',
-          description: 'Professional coffee maker with programmable settings',
-          price: 149.99,
-          category: 'Home & Kitchen',
-          stock: 12,
-          image: '/api/placeholder/150/150',
-          rating: 4.6,
-          status: 'inactive',
-          createdAt: '2024-01-12'
-        }
-      ]);
-      setLoading(false);
-    }, 1000);
+    loadProducts();
   }, [user, router]);
 
-  const categories = ['all', 'Electronics', 'Clothing', 'Home & Kitchen', 'Books', 'Sports'];
+  const loadProducts = async () => {
+    try {
+      setLoading(true);
+      const response = await apiClient.getProducts({
+        page: 1,
+        limit: 100 // Load more products
+      });
+
+      if (response.error) {
+        console.error('Failed to load products:', response.error);
+        return;
+      }
+
+      if (response.data) {
+        const data = response.data as any;
+        if (data.products) {
+          setProducts(data.products);
+        } else {
+          // If the API returns products directly
+          setProducts(data);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading products:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  }, [user, router]);
+
+  const categories = ['all', 'crochet', 'knitted', 'accessories', 'home-decor'];
   const statuses = ['all', 'active', 'inactive'];
 
   const filteredProducts = products.filter(product => {
@@ -148,7 +127,7 @@ export default function ProductsManagement() {
 
   const confirmDelete = () => {
     if (productToDelete) {
-      setProducts(prev => prev.filter(p => p.id !== productId));
+      setProducts(prev => prev.filter(p => p._id !== productToDelete));
       setShowDeleteModal(false);
       setProductToDelete(null);
     }
@@ -197,13 +176,22 @@ export default function ProductsManagement() {
             <h1 className="text-3xl font-bold text-gray-900">Products</h1>
             <p className="text-gray-600 mt-1">Manage your product catalog</p>
           </div>
-          <Link
-            href="/admin/products/new"
-            className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            Add Product
-          </Link>
+                     <div className="flex space-x-3">
+             <button
+               onClick={loadProducts}
+               className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+             >
+               <RefreshCw className="h-5 w-5 mr-2" />
+               Refresh
+             </button>
+             <Link
+               href="/admin/products/new"
+               className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+             >
+               <Plus className="h-5 w-5 mr-2" />
+               Add Product
+             </Link>
+           </div>
         </div>
 
         {/* Filters and Search */}
@@ -285,15 +273,15 @@ export default function ProductsManagement() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Price
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Stock
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Rating
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
+                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                     Stock
+                   </th>
+                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                     Stock Status
+                   </th>
+                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                     Status
+                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
@@ -317,15 +305,15 @@ export default function ProductsManagement() {
                   </tr>
                 ) : (
                   filteredProducts.map((product) => (
-                    <tr key={product.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <input
-                          type="checkbox"
-                          checked={selectedProducts.includes(product.id)}
-                          onChange={() => handleSelectProduct(product.id)}
-                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                        />
-                      </td>
+                                         <tr key={product._id} className="hover:bg-gray-50">
+                       <td className="px-6 py-4 whitespace-nowrap">
+                         <input
+                           type="checkbox"
+                           checked={selectedProducts.includes(product._id)}
+                           onChange={() => handleSelectProduct(product._id)}
+                           className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                         />
+                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="h-12 w-12 flex-shrink-0">
@@ -347,50 +335,51 @@ export default function ProductsManagement() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ${product.price.toFixed(2)}
+                        {formatPrice(product.price)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          product.stock > 20 ? 'bg-green-100 text-green-800' :
-                          product.stock > 5 ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
-                          {product.stock} in stock
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <Star className="h-4 w-4 text-yellow-400 fill-current" />
-                          <span className="ml-1 text-sm text-gray-900">{product.rating}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          product.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {product.status}
-                        </span>
-                      </td>
+                                             <td className="px-6 py-4 whitespace-nowrap">
+                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                           product.stockQuantity > 20 ? 'bg-green-100 text-green-800' :
+                           product.stockQuantity > 5 ? 'bg-yellow-100 text-yellow-800' :
+                           'bg-red-100 text-red-800'
+                         }`}>
+                           {product.stockQuantity} in stock
+                         </span>
+                       </td>
+                       <td className="px-6 py-4 whitespace-nowrap">
+                         <div className="flex items-center">
+                           <span className="ml-1 text-sm text-gray-900">
+                             {product.inStock ? 'In Stock' : 'Out of Stock'}
+                           </span>
+                         </div>
+                       </td>
+                       <td className="px-6 py-4 whitespace-nowrap">
+                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                           product.inStock ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                         }`}>
+                           {product.inStock ? 'Active' : 'Inactive'}
+                         </span>
+                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center space-x-2">
-                          <Link
-                            href={`/admin/products/${product.id}`}
-                            className="text-purple-600 hover:text-purple-900"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Link>
-                          <Link
-                            href={`/admin/products/${product.id}/edit`}
-                            className="text-blue-600 hover:text-blue-900"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Link>
-                          <button
-                            onClick={() => handleDeleteProduct(product.id)}
-                            className="text-red-600 hover:text-red-900"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                                                     <Link
+                             href={`/admin/products/${product._id}`}
+                             className="text-purple-600 hover:text-purple-900"
+                           >
+                             <Eye className="h-4 w-4" />
+                           </Link>
+                           <Link
+                             href={`/admin/products/${product._id}/edit`}
+                             className="text-blue-600 hover:text-purple-900"
+                           >
+                             <Edit className="h-4 w-4" />
+                           </Link>
+                           <button
+                             onClick={() => handleDeleteProduct(product._id)}
+                             className="text-red-600 hover:text-red-900"
+                           >
+                             <Trash2 className="h-4 w-4" />
+                           </button>
                         </div>
                       </td>
                     </tr>
